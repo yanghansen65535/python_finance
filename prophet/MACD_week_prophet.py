@@ -11,17 +11,22 @@ import math
 from datetime import datetime
 from datetime import timedelta
 
+mode = 'verify'
+#mode = 'forecast'
+
 set_token('489c24f4bfbed614673f6a766e9b298015c40f4b')
-end_time='2023-3-15'
+end_time='2023-2-26'
 end_time=datetime.strptime(end_time, '%Y-%m-%d') 
-start_time=end_time-timedelta(days=4*365)
-prophet_week = 4 # 最后几周用于预测
+#end_time=datetime.now()
+start_time=end_time-timedelta(days=3*365)
+prophet_week = 4 # 预测周
 #code='SHSE.510500' #基金暂时不能复权
 code='SHSE.000905' #中证500指数
 
 #设定周期period_type  转换为周是'W',月'M',季度线'Q',五分钟'5min',12天'12D'
 period_type = 'W'
-
+if mode == 'verify':
+        end_time=end_time+timedelta(days=prophet_week*7)
 stock_data = history(symbol=code, frequency='1d', start_time=start_time, end_time=end_time,
               adjust=ADJUST_PREV, adjust_end_time=end_time, df=True)
 
@@ -70,34 +75,17 @@ macdhist=pd.DataFrame(macdhist,columns=['0']).tail(data_macd_count-32)
 # 前面一段没有MACD值
 data_macd = data_macd.tail(data_macd_count-32)
 data_macd_count = len(data_macd)
-'''
-add_plot = [mpf.make_addplot(macdhist.tail(data_count),type='bar',panel=2,ylabel='MACD',color='darkslateblue'),
-            mpf.make_addplot(macd.tail(data_count),panel=2,color='orangered'),
-            mpf.make_addplot(macdsignal.tail(data_count),panel=2,color='limegreen') 
-           ]
-'''
 
 data_plot = period_stock_data.copy(deep=True)
 data_plot = data_plot.tail(data_macd_count)
-
-'''
-mpf.plot(data_plot, 
-         type="candle", 
-         title="Candlestick for MSFT", 
-         ylabel="price",
-         style="charles",
-         volume=True,
-         addplot=add_plot,
-        mav=(5, 10, 20, 30, 60)
-        )
-'''
 
 macdhist['ds'] = macdhist.index
 macdhist.columns = ['y','ds']
 #print(macdhist)
 
 data_prophet = macdhist.copy(deep=True)
-data_prophet = data_prophet[0:-prophet_week]  #减去用于预测的几周
+if mode == 'verify':
+        data_prophet = data_prophet[0:-prophet_week]  #减去用于预测的几周
 data_prophet['ds'] = data_prophet['ds'].dt.tz_localize(None)  # remove timezone
 #print(data_prophet)
 
@@ -111,7 +99,7 @@ model = Prophet(yearly_seasonality=False,
                 weekly_seasonality=False, 
                 daily_seasonality=False,
                changepoint_prior_scale=1,
-                changepoint_range=0.7,
+                changepoint_range=0.8,
                 #mcmc_samples=0,
                 n_changepoints=25,
                 #interval_width=0.5,
@@ -160,19 +148,47 @@ macd_prophet_plot = pd.DataFrame()
 macd_prophet_plot['data'] = forecast['yhat'] #注意两个dataframe 的index得一致，所以先copy，再赋index
 macd_prophet_plot.index = forecast['ds'] 
 
-add_plot = [mpf.make_addplot(macdhist['y'].tail(data_macd_count),type='bar',panel=2,ylabel='MACD',color='darkslateblue'),
+if mode == 'verify':
+        add_plot = [mpf.make_addplot(macdhist['y'].tail(data_macd_count),type='bar',panel=2,ylabel='MACD',color='darkslateblue'),
             mpf.make_addplot(macd.tail(data_macd_count),panel=2,color='orangered'),
             mpf.make_addplot(macdsignal.tail(data_macd_count),panel=2,color='limegreen'),
             mpf.make_addplot(macd_prophet_plot.tail(data_macd_count),type='bar',panel=3,ylabel='MACD_p',color='darkslateblue')
            ]
 
-mpf.plot(data_plot, 
-         type="candle", 
-         title="Candlestick for MSFT", 
-         ylabel="price",
-         style="charles",
-         volume=True,
-         addplot=add_plot,
-         vlines=forecast['ds'][data_macd_count-prophet_week],
-        mav=(5, 10, 20, 30, 60)
-        )
+        mpf.plot(data_plot, 
+                type="candle", 
+                title="Candlestick for MSFT", 
+                ylabel="price",
+                style="charles",
+                volume=True,
+                addplot=add_plot,
+                vlines=forecast['ds'][data_macd_count-prophet_week],
+                mav=(5, 10, 20, 30, 60)
+                )
+
+if mode == 'forecast':
+        # 注意macd_prophet_plot 的数据会多出 prophet_week 个
+        # make_addplot 并不管时间，而是直接对应数据
+        # 在原始数据后加 prophet_week 个空值
+        index_append = pd.date_range(data_plot.index[-1] + timedelta(days=7), data_plot.index[-1]+timedelta(days=prophet_week*7), freq = period_type)
+        data_plot = data_plot.append(pd.DataFrame(index = index_append, columns = data_plot.columns))
+        macdhist = macdhist.append(pd.DataFrame(index = index_append, columns = macdhist.columns))
+        macd = macd.append(pd.DataFrame(index = index_append, columns = macd.columns))
+        macdsignal = macdsignal.append(pd.DataFrame(index = index_append, columns = macdsignal.columns))
+
+        add_plot = [mpf.make_addplot(macdhist['y'].tail(data_macd_count+prophet_week),type='bar',panel=2,ylabel='week MACD',color='darkslateblue'),
+                mpf.make_addplot(macd.tail(data_macd_count+prophet_week),panel=2,color='orangered'),
+                mpf.make_addplot(macdsignal.tail(data_macd_count+prophet_week),panel=2,color='limegreen'),
+                mpf.make_addplot(macd_prophet_plot.tail(data_macd_count+prophet_week),type='bar',panel=3,ylabel='week MACD_p',color='darkslateblue')
+                ]
+
+        mpf.plot(data_plot, 
+                type="candle", 
+                title="Week Candlestick", 
+                ylabel="price",
+                style="charles",
+                volume=True,
+                addplot=add_plot,
+                #vlines=forecast['ds'][data_macd_count],
+                mav=(5, 10, 20, 30, 60)
+                )

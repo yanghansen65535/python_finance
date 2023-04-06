@@ -11,18 +11,28 @@ import math
 from datetime import datetime
 from datetime import timedelta
 
+mode = 'verify'
+#mode = 'forecast'
+
 set_token('489c24f4bfbed614673f6a766e9b298015c40f4b')
 #code='SHSE.510500' #基金暂时不能复权
 code='SHSE.000905' #中证500指数
-end_time='2023-4-3'
+end_time='2023-3-3'
 end_time=datetime.strptime(end_time, '%Y-%m-%d') 
 start_time=end_time-timedelta(days=365)
-prophet_day = 20 # 多几天用于预测
+prophet_day = 20 # 多几天用于预测。但是有周末，实际的天数比这个少
 
 period_type = 'D'
-end_time=end_time+timedelta(days=prophet_day)
-data = history(symbol=code, frequency='1d', start_time=start_time, end_time=end_time,
+if mode == 'forecast':
+    data = history(symbol=code, frequency='1d', start_time=start_time, end_time=end_time,
               adjust=ADJUST_PREV, df=True)
+if mode == 'verify':
+    data0 = history(symbol=code, frequency='1d', start_time=start_time, end_time=end_time,
+                adjust=ADJUST_PREV, df=True)    
+    end_time=end_time+timedelta(days=prophet_day)              
+    data = history(symbol=code, frequency='1d', start_time=start_time, end_time=end_time,
+                adjust=ADJUST_PREV, df=True)
+    prophet_day = len(data)-len(data0) # 更新真实的预测天数
 
 data.set_index("bob", inplace=True)
 data_macd = data.copy(deep=True)
@@ -46,7 +56,8 @@ macdhist.columns = ['y','ds']
 #print(macdhist)
 
 data_prophet = macdhist.copy(deep=True)
-#data_prophet = data_prophet[0:-prophet_day]  #减去用于预测的几天
+if mode == 'verify':
+    data_prophet = data_prophet[0:-prophet_day]  #减去用于预测的几天
 data_prophet = data_prophet 
 
 data_prophet['ds'] = data_prophet['ds'].dt.tz_localize(None)  # remove timezone
@@ -122,28 +133,47 @@ macd_prophet_plot = pd.DataFrame()
 macd_prophet_plot['data'] = forecast['yhat'] #注意两个dataframe 的index得一致，所以先copy，再赋index
 macd_prophet_plot.index = forecast['ds'] 
 
-# 注意macd_prophet_plot 的数据会多出 prophet_week 个
-# make_addplot 并不管时间，而是直接对应数据
-# 在原始数据后加 prophet_week 个空值
-index_append = pd.date_range(data_plot.index[-1] + timedelta(days=1), data_plot.index[-1]+timedelta(days=prophet_day), freq = period_type)
-data_plot = data_plot.append(pd.DataFrame(index = index_append, columns = data_plot.columns))
-macdhist = macdhist.append(pd.DataFrame(index = index_append, columns = macdhist.columns))
-macd = macd.append(pd.DataFrame(index = index_append, columns = macd.columns))
-macdsignal = macdsignal.append(pd.DataFrame(index = index_append, columns = macdsignal.columns))
+if mode == 'forecast':
+    # 注意macd_prophet_plot 的数据会多出 prophet_week 个
+    # make_addplot 并不管时间，而是直接对应数据
+    # 在原始数据后加 prophet_week 个空值
+    index_append = pd.date_range(data_plot.index[-1] + timedelta(days=1), data_plot.index[-1]+timedelta(days=prophet_day), freq = period_type)
+    data_plot = data_plot.append(pd.DataFrame(index = index_append, columns = data_plot.columns))
+    macdhist = macdhist.append(pd.DataFrame(index = index_append, columns = macdhist.columns))
+    macd = macd.append(pd.DataFrame(index = index_append, columns = macd.columns))
+    macdsignal = macdsignal.append(pd.DataFrame(index = index_append, columns = macdsignal.columns))
 
-add_plot = [mpf.make_addplot(macdhist['y'].tail(data_macd_count+prophet_day),type='bar',panel=2,ylabel='daliy MACD',color='darkslateblue'),
-            mpf.make_addplot(macd.tail(data_macd_count+prophet_day),panel=2,color='orangered'),
-            mpf.make_addplot(macdsignal.tail(data_macd_count+prophet_day),panel=2,color='limegreen'),
-            mpf.make_addplot(macd_prophet_plot.tail(data_macd_count+prophet_day),type='bar',panel=3,ylabel='daliy MACD_p',color='darkslateblue')
+    add_plot = [mpf.make_addplot(macdhist['y'].tail(data_macd_count+prophet_day),type='bar',panel=2,ylabel='daliy MACD',color='darkslateblue'),
+                mpf.make_addplot(macd.tail(data_macd_count+prophet_day),panel=2,color='orangered'),
+                mpf.make_addplot(macdsignal.tail(data_macd_count+prophet_day),panel=2,color='limegreen'),
+                mpf.make_addplot(macd_prophet_plot.tail(data_macd_count+prophet_day),type='bar',panel=3,ylabel='daliy MACD_p',color='darkslateblue')
+            ]
+
+    mpf.plot(data_plot, 
+            type="candle", 
+            title="daliy candle", 
+            ylabel="price",
+            style="charles",
+            volume=True,
+            addplot=add_plot,
+            vlines=forecast['ds'][data_macd_count],
+            mav=(5, 10, 20, 30, 60)
+            )
+
+if mode == 'verify':
+    add_plot = [mpf.make_addplot(macdhist['y'].tail(data_macd_count),type='bar',panel=2,ylabel='MACD',color='darkslateblue'),
+            mpf.make_addplot(macd.tail(data_macd_count),panel=2,color='orangered'),
+            mpf.make_addplot(macdsignal.tail(data_macd_count),panel=2,color='limegreen'),
+            mpf.make_addplot(macd_prophet_plot.tail(data_macd_count),type='bar',panel=3,ylabel='MACD_p',color='darkslateblue')
            ]
 
-mpf.plot(data_plot, 
-         type="candle", 
-         title="daliy candle", 
-         ylabel="price",
-         style="charles",
-         volume=True,
-         addplot=add_plot,
-         vlines=forecast['ds'][data_macd_count],
-        mav=(5, 10, 20, 30, 60)
-        )
+    mpf.plot(data_plot, 
+            type="candle", 
+            title="daliy candle", 
+            ylabel="price",
+            style="charles",
+            volume=True,
+            addplot=add_plot,
+            vlines=forecast['ds'][data_macd_count-prophet_day],
+            mav=(5, 10, 20, 30, 60)
+            )
