@@ -12,14 +12,17 @@ from datetime import datetime
 from datetime import timedelta
 
 mode = 'verify'
-#mode = 'forecast'
+mode = 'forecast'
 
 set_token('489c24f4bfbed614673f6a766e9b298015c40f4b')
 #code='SHSE.510500' #基金暂时不能复权
 code='SHSE.000905' #中证500指数
-end_time='2023-3-3'
+end_time='2019-11-30'
 end_time=datetime.strptime(end_time, '%Y-%m-%d') 
-start_time=end_time-timedelta(days=365)
+end_time = end_time+timedelta(days=7*17)
+if mode == 'forecast':
+    end_time=datetime.now()
+start_time=end_time-timedelta(days=365*2)
 prophet_day = 20 # 多几天用于预测。但是有周末，实际的天数比这个少
 
 period_type = 'D'
@@ -72,7 +75,7 @@ fig1 = px.line(data_prophet, x="ds", y="y")
 model = Prophet(yearly_seasonality=False, 
                 weekly_seasonality=False, 
                 daily_seasonality=False,
-               changepoint_prior_scale=0.5,
+               changepoint_prior_scale=1,
                 changepoint_range=0.8,
                 #mcmc_samples=0,
                 n_changepoints=25,
@@ -82,16 +85,21 @@ model = Prophet(yearly_seasonality=False,
 #model.add_country_holidays(country_name="CN")
 #model.add_seasonality(name='m5', period=5, fourier_order=5)
 '''
-model.add_seasonality(name='m10', period=10, fourier_order=round(10/5))
-model.add_seasonality(name='m22', period=22, fourier_order=round(22/5))
-model.add_seasonality(name='m60', period=60, fourier_order=round(60/5))
-model.add_seasonality(name='m120', period=120, fourier_order=round(120/5))
-'''
-model.add_seasonality(name='m10', period=10, fourier_order=round(math.log(10,2)))
-model.add_seasonality(name='m22', period=22, fourier_order=round(math.log(22,2)))
+#model.add_seasonality(name='m5', period=5, fourier_order=round(math.log(5,2)))
+model.add_seasonality(name='m10', period=10, fourier_order=round(math.log(60,2)))
+model.add_seasonality(name='m22', period=22, fourier_order=round(math.log(60,2)))
+#model.add_seasonality(name='m30', period=30, fourier_order=round(math.log(30,2)))
 model.add_seasonality(name='m60', period=60, fourier_order=round(math.log(60,2)))
-#model.add_seasonality(name='m120', period=120, fourier_order=round(math.log(120,2)))
-#model.add_seasonality(name='m250', period=250, fourier_order=round(math.log(250,2)))
+model.add_seasonality(name='m120', period=120, fourier_order=round(math.log(60,2)))
+#model.add_seasonality(name='m250', period=250, fourier_order=round(math.log(60,2)))
+'''
+#model.add_seasonality(name='m5', period=7, fourier_order=6)
+model.add_seasonality(name='m10', period=14, fourier_order=2)
+model.add_seasonality(name='m22', period=28, fourier_order=5)
+#model.add_seasonality(name='m30', period=30, fourier_order=round(math.log(30,2)))
+model.add_seasonality(name='m60', period=63, fourier_order=10)
+model.add_seasonality(name='m120', period=120, fourier_order=20)
+#model.add_seasonality(name='m250', period=250, fourier_order=round(math.log(60,2)))
 model.fit(data_prophet)
           
 # 05 模型预测
@@ -102,15 +110,15 @@ forecast = model.predict(future)
 # 05.1 绘制预测趋势图
 #import plotly.express as px
 fig2 = px.line(forecast, x="ds", y="yhat")
-fig2.show()
+#fig2.show()
 
 # 06 绘制分解图
 from prophet.plot import plot_plotly, plot_components_plotly
 from prophet.plot import add_changepoints_to_plot
-fig1 = model.plot(forecast)
-a = add_changepoints_to_plot(fig1.gca(), model, forecast)
+#fig1 = model.plot(forecast)
+#a = add_changepoints_to_plot(fig1.gca(), model, forecast)
 #fig1.savefig('temp1.png')
-fig2 = model.plot_components(forecast)
+#fig2 = model.plot_components(forecast)
 
 # 07 模型评估
 train_len = len(data_prophet["y"])

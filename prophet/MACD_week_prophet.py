@@ -12,13 +12,16 @@ from datetime import datetime
 from datetime import timedelta
 
 mode = 'verify'
-#mode = 'forecast'
+mode = 'forecast'
 
 set_token('489c24f4bfbed614673f6a766e9b298015c40f4b')
-end_time='2023-2-26'
+end_time='2019-11-30'
 end_time=datetime.strptime(end_time, '%Y-%m-%d') 
-#end_time=datetime.now()
-start_time=end_time-timedelta(days=3*365)
+
+end_time = end_time+timedelta(days=7*17)
+if mode == 'forecast':
+        end_time=datetime.now()
+start_time=end_time-timedelta(days=4*365)
 prophet_week = 4 # 预测周
 #code='SHSE.510500' #基金暂时不能复权
 code='SHSE.000905' #中证500指数
@@ -91,7 +94,7 @@ data_prophet['ds'] = data_prophet['ds'].dt.tz_localize(None)  # remove timezone
 
 # 03 绘制原始趋势图
 import plotly.express as px
-fig = px.line(data_prophet, x="ds", y="y")
+#fig = px.line(data_prophet, x="ds", y="y")
 #fig.show()
 
 # 04 模型训练
@@ -108,10 +111,10 @@ model = Prophet(yearly_seasonality=False,
 #model.add_country_holidays(country_name="CN")
 model.add_seasonality(name='m5', period=5*7, fourier_order=round(5/5))
 model.add_seasonality(name='m10', period=10*7, fourier_order=round(10/5))
-model.add_seasonality(name='m20', period=22*7, fourier_order=round(22/5))
-model.add_seasonality(name='m60', period=60*7, fourier_order=round(60/5))
-#model.add_seasonality(name='m120', period=120*7, fourier_order=round(120/5))
-#model.add_seasonality(name='m250', period=250, fourier_order=20)
+model.add_seasonality(name='m20', period=20*7, fourier_order=round(20/5))
+model.add_seasonality(name='m50', period=50*7, fourier_order=round(30/5))
+model.add_seasonality(name='m100', period=100*7, fourier_order=round(50/5))
+model.add_seasonality(name='m200', period=200*7, fourier_order=round(50/5))
 model.fit(data_prophet)
           
 # 05 模型预测
@@ -122,10 +125,10 @@ forecast = model.predict(future)
 # 06 绘制分解图
 from prophet.plot import plot_plotly, plot_components_plotly
 from prophet.plot import add_changepoints_to_plot
-fig1 = model.plot(forecast)
-a = add_changepoints_to_plot(fig1.gca(), model, forecast)
+#fig1 = model.plot(forecast)
+#a = add_changepoints_to_plot(fig1.gca(), model, forecast)
 #fig1.savefig('temp1.png')
-fig2 = model.plot_components(forecast)
+#fig2 = model.plot_components(forecast)
 
 # 07 模型评估
 train_len = len(data_prophet["y"])
@@ -157,7 +160,7 @@ if mode == 'verify':
 
         mpf.plot(data_plot, 
                 type="candle", 
-                title="Candlestick for MSFT", 
+                title="Week Candlestick", 
                 ylabel="price",
                 style="charles",
                 volume=True,
@@ -189,6 +192,6 @@ if mode == 'forecast':
                 style="charles",
                 volume=True,
                 addplot=add_plot,
-                #vlines=forecast['ds'][data_macd_count],
+                vlines=forecast['ds'][data_macd_count],
                 mav=(5, 10, 20, 30, 60)
                 )
