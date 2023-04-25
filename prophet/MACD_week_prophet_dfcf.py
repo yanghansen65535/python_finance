@@ -1,6 +1,5 @@
 # 周macd
 from __future__ import print_function, absolute_import
-from gm.api import *
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -12,9 +11,11 @@ from datetime import datetime
 from datetime import timedelta
 
 mode = 'verify'
-#mode = 'forecast'
+mode = 'forecast'
 
-set_token('489c24f4bfbed614673f6a766e9b298015c40f4b')
+data_mode = 'local'
+#data_mode = 'remote'
+
 end_time='2023-3-5'
 end_time=datetime.strptime(end_time, '%Y-%m-%d') 
 
@@ -25,17 +26,26 @@ start_time=end_time-timedelta(days=4*365)
 prophet_week = 4 # 预测周
 #code='SHSE.510500' #基金暂时不能复权
 code='SHSE.000905' #中证500指数
-code='SZSE.300438' #
+#code='SZSE.300438' #
 #code='SHSE.600765'
 #code='SZSE.300025'
-
 
 #设定周期period_type  转换为周是'W',月'M',季度线'Q',五分钟'5min',12天'12D'
 period_type = 'W'
 if mode == 'verify':
         end_time=end_time+timedelta(days=prophet_week*7)
-stock_data = history(symbol=code, frequency='1d', start_time=start_time, end_time=end_time,
-              adjust=ADJUST_PREV, adjust_end_time=end_time, df=True)
+
+file_name = code+'_week_'+mode+'.csv'
+if data_mode == 'local':
+    stock_data = pd.read_csv(file_name)
+    stock_data['bob'] = pd.to_datetime(stock_data['bob'])
+else:
+    from gm.api import *
+    set_token('489c24f4bfbed614673f6a766e9b298015c40f4b')
+    stock_data = history(symbol=code, frequency='1d', start_time=start_time, end_time=end_time,
+        adjust=ADJUST_PREV, adjust_end_time=end_time, df=True)
+    #save
+    stock_data.to_csv(file_name)
 
 #print(stock_data)
 

@@ -1,6 +1,5 @@
 # day MACD - pro
 from __future__ import print_function, absolute_import
-from gm.api import *
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -14,11 +13,13 @@ from datetime import timedelta
 mode = 'verify'
 #mode = 'forecast'
 
-set_token('489c24f4bfbed614673f6a766e9b298015c40f4b')
+data_mode = 'local'
+#data_mode = 'remote'
+
 #code='SHSE.510500' #基金暂时不能复权
 code='SHSE.000905' #中证500指数
 #code='SZSE.000905' #厦门港务
-code='SZSE.300438' #
+#code='SZSE.300438' #
 #code='SHSE.600765'
 #code='SZSE.300025'
 
@@ -31,16 +32,26 @@ start_time=end_time-timedelta(days=365*2)
 prophet_day = 20 # 多几天用于预测。但是有周末，实际的天数比这个少
 
 period_type = 'D'
-if mode == 'forecast':
-    data = history(symbol=code, frequency='1d', start_time=start_time, end_time=end_time,
-              adjust=ADJUST_PREV, df=True)
-if mode == 'verify':
-    data0 = history(symbol=code, frequency='1d', start_time=start_time, end_time=end_time,
-                adjust=ADJUST_PREV, df=True)   
-    end_time=end_time+timedelta(days=prophet_day)              
-    data = history(symbol=code, frequency='1d', start_time=start_time, end_time=end_time,
+file_name = code+'_day_'+mode+'.csv'
+if data_mode == 'local':
+    data = pd.read_csv(file_name)
+    data['bob'] = pd.to_datetime(data['bob'])
+else:
+    from gm.api import *
+    set_token('489c24f4bfbed614673f6a766e9b298015c40f4b')
+
+    if mode == 'forecast':
+        data = history(symbol=code, frequency='1d', start_time=start_time, end_time=end_time,
                 adjust=ADJUST_PREV, df=True)
-    prophet_day = len(data)-len(data0) # 更新真实的预测天数
+    if mode == 'verify':
+        data0 = history(symbol=code, frequency='1d', start_time=start_time, end_time=end_time,
+                    adjust=ADJUST_PREV, df=True)   
+        end_time=end_time+timedelta(days=prophet_day)              
+        data = history(symbol=code, frequency='1d', start_time=start_time, end_time=end_time,
+                    adjust=ADJUST_PREV, df=True)
+        prophet_day = len(data)-len(data0) # 更新真实的预测天数
+    #save
+    data.to_csv(file_name)
 
 data.set_index("bob", inplace=True)
 data_macd = data.copy(deep=True)
