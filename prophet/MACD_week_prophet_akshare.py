@@ -12,19 +12,23 @@ from datetime import datetime
 from datetime import timedelta
 
 mode = 'verify'
-mode = 'forecast'
+#mode = 'forecast'
 
 set_token('489c24f4bfbed614673f6a766e9b298015c40f4b')
-end_time='2019-11-30'
+end_time='2023-3-5'
 end_time=datetime.strptime(end_time, '%Y-%m-%d') 
 
-end_time = end_time+timedelta(days=7*17)
+#end_time = end_time+timedelta(days=7*38)
 if mode == 'forecast':
         end_time=datetime.now()
 start_time=end_time-timedelta(days=4*365)
 prophet_week = 4 # 预测周
 #code='SHSE.510500' #基金暂时不能复权
 code='SHSE.000905' #中证500指数
+code='SZSE.300438' #
+#code='SHSE.600765'
+#code='SZSE.300025'
+
 
 #设定周期period_type  转换为周是'W',月'M',季度线'Q',五分钟'5min',12天'12D'
 period_type = 'W'

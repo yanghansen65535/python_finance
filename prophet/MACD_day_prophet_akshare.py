@@ -11,33 +11,49 @@ import math
 from datetime import datetime
 from datetime import timedelta
 
+import akshare as ak
+
 mode = 'verify'
 mode = 'forecast'
 
-set_token('489c24f4bfbed614673f6a766e9b298015c40f4b')
-#code='SHSE.510500' #基金暂时不能复权
-code='SHSE.000905' #中证500指数
-end_time='2019-11-30'
-end_time=datetime.strptime(end_time, '%Y-%m-%d') 
-end_time = end_time+timedelta(days=7*17)
+symbol="小金属"
+end_time_str="20220401"
+
+#stock_board_industry_hist_em_df = ak.stock_board_industry_hist_em(symbol=symbol, start_date=start_time, end_date=end_time, period="日k", adjust="")
+
 if mode == 'forecast':
-    end_time=datetime.now()
-start_time=end_time-timedelta(days=365*2)
+    end_time_dt=datetime.now()
+    end_time_str=datetime.strftime(end_time_dt, '%Y%m%d') 
+start_time_dt=end_time_dt-timedelta(days=365*2)
+start_time_str=datetime.strftime(start_time_dt, '%Y%m%d')
+
 prophet_day = 20 # 多几天用于预测。但是有周末，实际的天数比这个少
 
 period_type = 'D'
 if mode == 'forecast':
-    data = history(symbol=code, frequency='1d', start_time=start_time, end_time=end_time,
-              adjust=ADJUST_PREV, df=True)
+    data = ak.stock_board_industry_hist_em(symbol=symbol, start_date=start_time_str, end_date=end_time_str, period="日k", adjust="")
 if mode == 'verify':
-    data0 = history(symbol=code, frequency='1d', start_time=start_time, end_time=end_time,
-                adjust=ADJUST_PREV, df=True)    
-    end_time=end_time+timedelta(days=prophet_day)              
-    data = history(symbol=code, frequency='1d', start_time=start_time, end_time=end_time,
-                adjust=ADJUST_PREV, df=True)
+    data0 = ak.stock_board_industry_hist_em(symbol=symbol, start_date=start_time_str, end_date=end_time_str, period="日k", adjust="")
+
+    end_time_dt=end_time_dt+timedelta(days=prophet_day) 
+    end_time_str=datetime.strftime(end_time_dt, '%Y%m%d') 
+
+    data = ak.stock_board_industry_hist_em(symbol=symbol, start_date=start_time_str, end_date=end_time_str, period="日k", adjust="")     
     prophet_day = len(data)-len(data0) # 更新真实的预测天数
 
+# replace 
+data.rename(columns={'日期':'bob',
+                    '开盘':'open',
+                    '收盘':'close',
+                    '最高':'high',
+                    '最低':'low',
+                    '成交量':'volume'},inplace=True)
+#
+data['bob'] = pd.to_datetime(data['bob'])
+
 data.set_index("bob", inplace=True)
+
+
 data_macd = data.copy(deep=True)
 data_macd_count = len(data_macd)
 
@@ -63,7 +79,7 @@ if mode == 'verify':
     data_prophet = data_prophet[0:-prophet_day]  #减去用于预测的几天
 data_prophet = data_prophet 
 
-data_prophet['ds'] = data_prophet['ds'].dt.tz_localize(None)  # remove timezone
+#data_prophet['ds'] = data_prophet['ds'].dt.tz_localize(None)  # remove timezone
 #print(data_prophet)
 
 # 03 绘制原始趋势图
@@ -95,10 +111,10 @@ model.add_seasonality(name='m120', period=120, fourier_order=round(math.log(60,2
 '''
 #model.add_seasonality(name='m5', period=7, fourier_order=6)
 model.add_seasonality(name='m10', period=14, fourier_order=2)
-model.add_seasonality(name='m22', period=28, fourier_order=5)
+model.add_seasonality(name='m22', period=28, fourier_order=4)
 #model.add_seasonality(name='m30', period=30, fourier_order=round(math.log(30,2)))
-model.add_seasonality(name='m60', period=63, fourier_order=10)
-model.add_seasonality(name='m120', period=120, fourier_order=20)
+model.add_seasonality(name='m60', period=63, fourier_order=12)
+model.add_seasonality(name='m120', period=120, fourier_order=18)
 #model.add_seasonality(name='m250', period=250, fourier_order=round(math.log(60,2)))
 model.fit(data_prophet)
           
