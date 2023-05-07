@@ -4,6 +4,7 @@ from datetime import timedelta
 import numpy as np
 import pandas as pd
 import akshare as ak
+import talib as tb
 
 #mode = 'verify'
 mode = 'forecast'
@@ -21,6 +22,50 @@ result_list = []
 industry_list = ak.stock_board_industry_name_em()
 for index, row in industry_list.iterrows():
     symbol = row["板块名称"]
+    ################################
+    # dif dea 不可全小于0
+    start_time_str = '20050101'
+    end_time_dt=datetime.now()
+    end_time_str=datetime.strftime(end_time_dt, '%Y%m%d')
+    period_type = 'W'
+    data = ak.stock_board_industry_hist_em(symbol=symbol, start_date=start_time_str, end_date=end_time_str, period="日k", adjust="hfq")
+
+    data.rename(columns={'日期':'bob',
+                        '开盘':'open',
+                        '收盘':'close',
+                        '最高':'high',
+                        '最低':'low',
+                        '成交量':'volume',
+                        '成交额':'amount'},inplace=True)    
+
+    data['bob'] = pd.to_datetime(data['bob'])
+    data.set_index('bob', inplace=True)
+    period_stock_data = data.resample(period_type).last()
+    period_stock_data['open'] = data['open'].resample(period_type).first()
+    period_stock_data['high'] = data['high'].resample(period_type).max()
+    period_stock_data['low'] = data['low'].resample(period_type).min()
+    period_stock_data['volume'] = data['volume'].resample(period_type).sum()
+    period_stock_data['amount'] = data['amount'].resample(period_type).sum()
+    period_stock_data = period_stock_data[period_stock_data['open'].notnull()]
+    period_stock_data.reset_index(inplace=True)
+
+    period_stock_data.set_index("bob", inplace=True)
+    # print(period_stock_data)
+    data_macd = period_stock_data.copy(deep=True)
+    data_macd_count = len(data_macd)
+
+    macd, macdsignal, macdhist = tb.MACD(
+        data_macd['close'], fastperiod=12, slowperiod=26, signalperiod=9)
+    # 计算，去掉前面一段没有MACD值
+    macd = pd.DataFrame(macd, columns=['0']).tail(data_macd_count-32)
+    macdsignal = pd.DataFrame(macdsignal, columns=['0']).tail(data_macd_count-32)
+    macdhist = pd.DataFrame(macdhist, columns=['0']).tail(data_macd_count-32)
+
+    dif = macd['0'].to_list()
+    dea = macdsignal['0'].to_list()
+    if dif[-1]<0 and dea[-1]<0:
+        continue
+    ##################################
     # week
     
     if mode == 'forecast':
@@ -64,6 +109,7 @@ for index, row in industry_list.iterrows():
 
     yhat = data_forecast_week['yhat'].to_list()
     if yhat[-1-prophet_week]<yhat[-prophet_week]:
+        #####################################
         # day, 5天内有极小值
         prophet_day = 5
         start_time_dt=end_time_dt-timedelta(days=365*2)
