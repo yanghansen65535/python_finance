@@ -1,4 +1,3 @@
-from __future__ import print_function, absolute_import
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -9,7 +8,15 @@ import math
 from datetime import datetime
 from datetime import timedelta
 
-# para - data
+# para - stock data
+    # have bellow column:
+    # '日期':'bob',  data time
+    # '开盘':'open',
+    # '收盘':'close',
+    # '最高':'high',
+    # '最低':'low',
+    # '成交量':'volume',
+    # '成交额':'amount'      
 # para - mode: 'verify' or 'forecast'
 # para - plot_en: 1, 0
 # return data_forecast
@@ -170,6 +177,14 @@ def day_MACD_prophet(data, mode, prophet_day, plot_en):
     return forecast
 
 # para - data
+    # have bellow column:
+    # '日期':'bob',  data time
+    # '开盘':'open',
+    # '收盘':'close',
+    # '最高':'high',
+    # '最低':'low',
+    # '成交量':'volume',
+    # '成交额':'amount'     
 # para - mode: 'verify' or 'forecast'
 # para - plot_en: 1, 0
 # return data_forecast
@@ -196,7 +211,7 @@ def week_MACD_prophet(stock_data, mode, prophet_week, plot_en):
 
     #周线的volume和money等于那一周中volume和money各自的和
     period_stock_data['volume'] = stock_data['volume'].resample(period_type).sum()
-    period_stock_data['amount'] = stock_data['amount'].resample(period_type).sum()
+    #period_stock_data['amount'] = stock_data['amount'].resample(period_type).sum()
     ##计算周线turnover
     #period_stock_data['turnover'] = period_stock_data['volume']/\
     #                                (period_stock_data['traded_market_value']/period_stock_data['close'])
@@ -336,3 +351,23 @@ def week_MACD_prophet(stock_data, mode, prophet_week, plot_en):
                         mav=(5, 10, 20, 30, 60)
                         )
     return forecast
+
+
+def day_to_week(stock_data):
+    period_type = 'W'
+    stock_data_week = stock_data.resample(period_type).last()
+    stock_data_week['open'] = stock_data['open'].resample(period_type).first()
+    stock_data_week['high'] = stock_data['high'].resample(period_type).max()
+    stock_data_week['low'] = stock_data['low'].resample(period_type).min()
+    stock_data_week['volume'] = stock_data['volume'].resample(period_type).sum()
+    stock_data_week = stock_data_week[stock_data_week['open'].notnull()]
+    return stock_data_week
+
+# stock_data use datetime as index
+def macd_add(stock_data):
+    dif, dea, macd = tb.MACD(stock_data['close'], fastperiod=12, slowperiod=26, signalperiod=9)
+    macd_add = pd.DataFrame(data = zip(dif.values,dea.values,macd.values),
+                        index = dif.index.tolist(),
+                        columns=['dif','dea','macd'])
+    data_merge = stock_data.join(macd_add,how='inner')
+    return data_merge
