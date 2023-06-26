@@ -66,17 +66,18 @@ for i in range(2,len(stock_data_w)):
 #print(time_list)
 
 ####### back test
-result = pd.DataFrame(columns = ['0_high','0_low','1_high','1_low','2_high','2_low','3_high','3_low'])
-#  this week high low  |   1 week  high low   |   2 week  high low  |   3 week  high low
+result = pd.DataFrame(columns = ['date','0_high','0_low','1_high','1_low','2_high','2_low','3_high','3_low'])
+# time  |  this week high low  |   1 week  high low   |   2 week  high low  |   3 week  high low
 for i in range(2,len(stock_data_w)):
     if stock_data_w.iloc[i].name in time_list:
         if (i+3)<len(stock_data_w):
-            append_data = [[stock_data_w.iloc[i]['high'], stock_data_w.iloc[i]['low'], 
+            append_data = [[stock_data_w.iloc[i].name, 
+                            stock_data_w.iloc[i]['high'], stock_data_w.iloc[i]['low'], 
                       stock_data_w.iloc[i+1]['high'], stock_data_w.iloc[i+1]['low'],
                      stock_data_w.iloc[i+2]['high'], stock_data_w.iloc[i+2]['low'],
                      stock_data_w.iloc[i+3]['high'],stock_data_w.iloc[i+3]['low']]]
             #print((append_data))
-            result = pd.concat([result, pd.DataFrame(append_data, columns = ['0_high','0_low','1_high','1_low','2_high','2_low','3_high','3_low'])])
+            result = pd.concat([result, pd.DataFrame(append_data, columns = ['date','0_high','0_low','1_high','1_low','2_high','2_low','3_high','3_low'])])
             result.reset_index()
             #print(stock_data_w.iloc[i].name)
 #print(result)

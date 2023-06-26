@@ -57,14 +57,15 @@ for index, row in industry_list.iterrows():
     macd, macdsignal, macdhist = tb.MACD(
         data_macd['close'], fastperiod=12, slowperiod=26, signalperiod=9)
     # 计算，去掉前面一段没有MACD值
-    macd = pd.DataFrame(macd, columns=['0']).tail(data_macd_count-32)
-    macdsignal = pd.DataFrame(macdsignal, columns=['0']).tail(data_macd_count-32)
-    macdhist = pd.DataFrame(macdhist, columns=['0']).tail(data_macd_count-32)
+    macd = pd.DataFrame(macd, columns=['0']).tail(data_macd_count-32)   # dif
+    macdsignal = pd.DataFrame(macdsignal, columns=['0']).tail(data_macd_count-32)   #dea
+    macdhist = pd.DataFrame(macdhist, columns=['0']).tail(data_macd_count-32)   # MACD
 
     dif = macd['0'].to_list()
     dea = macdsignal['0'].to_list()
-    if dif[-1]<0 and dea[-1]<0:
-        continue
+    macd_hist = macdhist['0'].to_list()
+    #if dif[-1]<0 and dea[-1]<0:
+    #    continue
     ##################################
     # week
     
@@ -108,7 +109,12 @@ for index, row in industry_list.iterrows():
     data_forecast_week = prophet_lib.week_MACD_prophet(data, mode, prophet_week, 0)
 
     yhat = data_forecast_week['yhat'].to_list()
-    if yhat[-1-prophet_week]<yhat[-prophet_week]:
+
+    filter1 = ((dif[-1]>0)or(dea[-1]>0))and(yhat[-1-prophet_week]<yhat[-prophet_week])
+    filter2 = ((dif[-1]>0)and(dea[-1]>0))
+    filter3 = ((dif[-1]<0)and(dea[-1]<0)and(dif[-1]>dif[-2]))
+
+    if filter1 or filter2 or filter3:
         #####################################
         # day, 5天内有极小值
         prophet_day = 5

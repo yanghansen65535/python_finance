@@ -20,12 +20,10 @@ data_mode = 'remote'
 
 code='sh000905' #中证500指数
 
-end_time='20230105'
-end_time=datetime.strptime(end_time, '%Y%m%d') 
+######### choose one
+end_time=datetime.strptime('20230105', '%Y%m%d') 
+end_time=datetime.now()
 
-#end_time = end_time+timedelta(days=7*38)
-if mode == 'forecast':
-    end_time=datetime.now()
 start_time=end_time-timedelta(days=4*365)
 
 prophet_week = 4 # 预测周

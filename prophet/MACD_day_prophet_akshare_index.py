@@ -12,20 +12,18 @@ from datetime import timedelta
 import akshare as ak
 import prophet_lib
 
-
-mode = 'verify'
+#mode = 'verify'
 mode = 'forecast'
 
-data_mode = 'local'
+#data_mode = 'local'
 data_mode = 'remote'
 
 code='sh000905' #中证500指数
 
+##########  choose  one
+end_time=datetime.strptime('20230305', '%Y%m%d') 
+#end_time=datetime.now()
 
-end_time='20230305'
-end_time=datetime.strptime(end_time, '%Y%m%d') 
-if mode == 'forecast':
-    end_time=datetime.now()
 start_time=end_time-timedelta(days=365*2)
 prophet_day = 20 # 多几天用于预测。但是有周末，实际的天数比这个少
 
